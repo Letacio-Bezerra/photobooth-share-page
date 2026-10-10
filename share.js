@@ -44,32 +44,32 @@ async function shareFile(previewUrl) {
 async function configureSharing(previewUrl, pageUrl) {
   if (!navigator.share) return;
   elements.share.hidden = false;
-  elements.status.textContent = "Preparando o compartilhamento…";
+  elements.share.disabled = false;
 
-  try {
-    const file = await shareFile(previewUrl);
-    if (navigator.canShare?.({ files: [file] })) {
-      elements.share.disabled = false;
+  // Do not pre-download the image merely to enable this button. The <img>
+  // preview is the only transfer made on page load; the file is fetched only
+  // after the guest explicitly chooses to share it.
+  elements.share.addEventListener("click", async () => {
+    elements.share.disabled = true;
+    elements.status.textContent = "Preparando o compartilhamento…";
+    try {
+      const file = await shareFile(previewUrl);
+      if (navigator.canShare?.({ files: [file] })) {
+        await navigator.share({ files: [file], title: "Minha foto" });
+      } else {
+        await navigator.share({ title: "Minha foto", url: pageUrl });
+      }
       elements.status.textContent = "";
-      elements.share.addEventListener("click", async () => {
-        try {
-          await navigator.share({ files: [file], title: "Minha foto" });
-        } catch (error) {
-          if (error?.name !== "AbortError") {
-            elements.status.textContent = "Não foi possível compartilhar a foto. Use Baixar foto.";
-          }
-        }
-      });
-      return;
+    } catch (error) {
+      if (error?.name !== "AbortError") {
+        elements.status.textContent = "Não foi possível compartilhar a foto. Use Baixar foto.";
+      } else {
+        elements.status.textContent = "";
+      }
+    } finally {
+      elements.share.disabled = false;
     }
-
-    elements.share.disabled = false;
-    elements.status.textContent = "Seu navegador compartilhará o link da foto.";
-    elements.share.addEventListener("click", () => navigator.share({ title: "Minha foto", url: pageUrl }));
-  } catch {
-    elements.share.hidden = true;
-    elements.status.textContent = "Não foi possível preparar o compartilhamento. Use Baixar foto.";
-  }
+  });
 }
 
 const token = new URL(window.location.href).searchParams.get("token")?.trim() ?? "";
